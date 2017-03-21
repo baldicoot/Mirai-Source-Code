@@ -31,15 +31,18 @@ struct telnet_info *telnet_info_parse(char *str, struct telnet_info *out) // For
 
     if ((conn = strtok(str, " ")) == NULL)
         return NULL;
+
     if ((auth = strtok(NULL, " ")) == NULL)
         return NULL;
+
     arch = strtok(NULL, " "); // We don't care if we don't know the arch
 
     if ((addr_str = strtok(conn, ":")) == NULL)
         return NULL;
+
     if ((port_str = strtok(NULL, ":")) == NULL)
         return NULL;
-
+ 
     if (strlen(auth) == 1)
     {
         if (auth[0] == ':')
@@ -58,6 +61,6 @@ struct telnet_info *telnet_info_parse(char *str, struct telnet_info *out) // For
 
     addr = inet_addr(addr_str);
     port = htons(atoi(port_str));
-
+    //printf("user:%s pass:%s arch:%s addr:%s port:%s\n", user, pass, arch, addr_str, port_str);
     return telnet_info_new(user, pass, arch, addr, port, out);
 }

